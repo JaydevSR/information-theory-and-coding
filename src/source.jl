@@ -1,17 +1,22 @@
 abstract type InformationSource end
 
-struct DiscreteMemorylessSource{T} <: InformationSource
+struct DiscreteMemorylessSource{T} <: InformationSource where T
     symbols::Vector{T}
-    distribution::Vector{Float64}
-    entropy::Float64
+    distribution::Dict{T, Float64}
 end
 
-function DiscreteMemorylessSource(distribution::Vector{Float64}; symbols=nothing, normalize=true)
+function DiscreteMemorylessSource(
+                    distribution::Vector{Float64};
+                    symbols::Vector=[],
+                    normalize=true)
     n = length(distribution)
-    !isnothing(symbols) || symbols = collect(1:n)
-    normalize || distribution /= sum(distribution)
-    return DiscreteMemorylessSource{Integer}(
-        collect(1:n),
-        distribution,
-        entropy(distribution))
+    isnothing(symbols) ? symbols = collect(1:n) : 0
+    normalize ? distribution /= sum(distribution) : 0
+
+    T = eltype(symbols)
+    return DiscreteMemorylessSource{T}(
+        symbols,
+        Dict(symbols[i] => distribution[i] for i in 1:n))
 end
+
+entropy(X::DiscreteMemorylessSource) = entropy(dms.distribution)
