@@ -5,6 +5,25 @@ Check if the given vector of codeword lengths satisfies the Kraft inequality.
 """
 is_kraft_compatible(L::Vector{Integer}; base=2) = (sum(base .^ -L) <= 1)
 
+function average_length(distribution::Vector{Float64}, codes::Vector{String})
+    @assert length(distribution) == length(codes)
+    sum(distribution .* map(length, codes))
+end
+
+function average_length(source::DiscreteMemorylessSource{T}, codes::Dict{T, String}) where {T}
+    average_length([source.distribution[s] for s in source.symbols], [codes[s] for s in source.symbols])
+end
+
+function coding_efficiency(distribution::Vector{Float64}, codes::Vector{String})
+    entropy(distribution; normalize = true) / average_length(distribution, codes)
+end
+
+function coding_efficiency(source::DiscreteMemorylessSource{T}, codes::Dict{T, String}) where {T}
+    entropy(source) / average_length(
+        [source.distribution[s] for s in source.symbols],
+        [codes[s] for s in source.symbols])
+end
+
 struct HuffmanEncoder end
 
 function encode(source::DiscreteMemorylessSource, encoder::HuffmanEncoder)
@@ -24,12 +43,14 @@ function encode(distribution::Vector{Float64}, encoder::HuffmanEncoder)
         sort!(distribution, rev=true)
 
         mintwo_merged = distribution[end-1] + distribution[end]
+        pos_merged = findfirst(x -> x < mintwo_merged, distribution)
         pass_distribution = push!(distribution[1:nsymbols-2], mintwo_merged)
         subcode = encode(pass_distribution, encoder)
 
-        code[1:end-2] = subcode[1:end-1]
-        code[end-1] = subcode[end]*"0"
-        code[end] = subcode[end]*"1"
+        code[1:pos_merged-1] = subcode[1:pos_merged-1]
+        code[pos_merged:end-2] = subcode[pos_merged+1:end]
+        code[end-1] = subcode[pos_merged]*"0"
+        code[end] = subcode[pos_merged]*"1"
         return code
     end
 end
@@ -47,7 +68,7 @@ function encode(distribution::Vector{Float64}, encoder::ShannonFanoEliasEncoder)
     sort!(distribution, rev=true)
     cdf = cumsum(distribution)
     modified_cdf = (distribution/2) .+ [0; view(cdf, 1:nsymbols-1)]
-    trunc_lengths = ceil.(log.(inv.(distribution))) .+ 1
+    trunc_lengths = ceil.(log2.(inv.(distribution))) .+ 1
 
     codes = [binary_decimal(p, l) for (p, l) in zip(modified_cdf, trunc_lengths)] 
 end

@@ -21,5 +21,5 @@ function DiscreteMemorylessSource(
         Dict(symbols[i] => distribution[i] for i in 1:nsymbols))
 end
 
-entropy(X::DiscreteMemorylessSource) = entropy(dms.distribution)
+entropy(dms::DiscreteMemorylessSource) = entropy(collect(values(dms.distribution)))
 Base.length(source::DiscreteMemorylessSource) = source.nsymbols
